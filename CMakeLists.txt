@@ -11,17 +11,17 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets LinguistTools)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets LinguistTools)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Network)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network)
 
 set(TS_FILES FWWidget_en_US.ts)
 
 set(PROJECT_SOURCES
         main.cpp
-        mainwindow.cpp
-        mainwindow.h
-        mainwindow.ui
-        ${TS_FILES}
+        design/mainwindow.cpp
+        design/mainwindow.h
+        design/networklist.cpp
+        design/networklist.h
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
@@ -33,8 +33,6 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
 #    set_property(TARGET FWWidget APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
 #                 ${CMAKE_CURRENT_SOURCE_DIR}/android)
 # For more information, see https://doc.qt.io/qt-6/qt-add-executable.html#target-creation
-
-    qt_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
 else()
     if(ANDROID)
         add_library(FWWidget SHARED
@@ -47,11 +45,9 @@ else()
             ${PROJECT_SOURCES}
         )
     endif()
-
-    qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
 endif()
 
-target_link_libraries(FWWidget PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+target_link_libraries(FWWidget PRIVATE Qt${QT_VERSION_MAJOR}::Widgets  Qt${QT_VERSION_MAJOR}::Network)
 
 set_target_properties(FWWidget PROPERTIES
     MACOSX_BUNDLE_GUI_IDENTIFIER my.example.com
