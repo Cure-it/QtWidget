@@ -9,9 +9,9 @@ MainWindow::MainWindow(QWidget *parent)
     tabs.addTab(new QWidget, "PRISMAcloud");
 
     NetworkList* network_list = new NetworkList;
-    connect(&tabs, &TabWidget::tabBarClicked, network_list, &NetworkList::refresh_data);
+    connect(&tabs, &TabWidget::tabBarClicked, network_list, &NetworkList::refreshData);
     auto tab_index = tabs.addTab(network_list, "Network \ninterfaces");
-    dynamic_cast<NetworkList*>(tabs.widget(tab_index))->set_tab_index(tab_index);
+    dynamic_cast<NetworkList*>(tabs.widget(tab_index))->setTabIndex(tab_index);
 
     tabs.addTab(new QWidget, "Exit");
 

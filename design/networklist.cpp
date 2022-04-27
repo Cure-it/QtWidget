@@ -173,68 +173,60 @@ NetworkList::NetworkList()
 
 
 
-void NetworkList::insert_data(const QString &name, const QString &ipv4, const QString &ipv6)
+void NetworkList::insertData(const QString &name, const QString &ipv4, const QString &ipv6)
 {
-    if (!interfaces->getInterfaces().contains({ name, ipv4, ipv6 })) {
-        interfaces->insertRows(0, 1, QModelIndex());
+    interfaces->insertRows(0, 1, QModelIndex());
 
-        QModelIndex index = interfaces->index(0, 0, QModelIndex());
-        interfaces->setData(index, name, Qt::EditRole);
-        index = interfaces->index(0, 1, QModelIndex());
-        interfaces->setData(index, ipv4, Qt::EditRole);
-        index = interfaces->index(0, 2, QModelIndex());
-        interfaces->setData(index, ipv6, Qt::EditRole);
-    } else {
-        QMessageBox::information(this, tr("Duplicate Name"),
-            tr("The name \"%1\" already exists.").arg(name));
-    }
+    QModelIndex index = interfaces->index(0, 0, QModelIndex());
+    interfaces->setData(index, name, Qt::EditRole);
+    index = interfaces->index(0, 1, QModelIndex());
+    interfaces->setData(index, ipv4, Qt::EditRole);
+    index = interfaces->index(0, 2, QModelIndex());
+    interfaces->setData(index, ipv6, Qt::EditRole);
+}
 
+
+void NetworkList::clearData()
+{
+   auto size = interfaces->rowCount(QModelIndex());
+   interfaces->removeRows(0, size, QModelIndex());
 }
 
 
 
-void NetworkList::refresh_data(int index)
+void NetworkList::refreshData(int index)
 {
-    static int counter = 0;
     if (index == tab_index) {
-        counter++;
-        insert_data(QString::number(counter), "1", "12");
+        clearData();
 
-        /*
         auto NetworkIntefaces = QNetworkInterface::allInterfaces();
 
         for (auto it : NetworkIntefaces) {
-            auto name = it.humanReadableName();
-            auto type = it.type();
+            QString name = it.humanReadableName();
+            QString ipv4;
+            QString ipv6;
+
             auto flag = it.flags();
-            auto adress = it.addressEntries();
+            if ((flag & QNetworkInterface::InterfaceFlag::IsRunning) &&
+                    !(flag & QNetworkInterface::InterfaceFlag::IsLoopBack))
+            {
+                auto addresses = it.addressEntries();
+                for (auto it2 : addresses) {
+                    auto ip = it2.ip();
+                    if (ip.protocol() == QAbstractSocket::IPv4Protocol)
+                        ipv4 = ip.toString();
+                    else if (ip.protocol() == QAbstractSocket::IPv6Protocol)
+                        ipv6 = ip.toString();
 
-            for (auto it2 : adress) {
-                auto ip = it2.ip();
-                auto ipv4 = ip.toIPv4Address();
-                auto ipv6 = ip.toIPv6Address();
-                // if (ipv4 == 0)
-                // setModelTable (ipv4_row, ip);
-                // else
-                // setModelTable (ipv6_row, ip);
-                auto mask = it2.netmask();
-                auto gw = it2.broadcast();
-            }
-
-            name = 0;
-        }
-
-        auto adresses = QNetworkInterface::allAddresses();
-
-        for (auto it : adresses) {
-            auto name = it.toString();
-            name = 0;
-        }*/
+                }
+                insertData(name, ipv4, ipv6);
+            } // if flags correct
+        } // interfaces loop
     }
 }
 
 
-void NetworkList::set_tab_index (int index)
+void NetworkList::setTabIndex (int index)
 {
     tab_index = index;
 }

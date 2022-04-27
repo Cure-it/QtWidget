@@ -1,8 +1,6 @@
 #ifndef NETWORKLIST_H
 #define NETWORKLIST_H
 
-#include "testtab.h"
-
 #include <QWidget>
 #include <QNetworkInterface>
 #include <QTableView>
@@ -68,15 +66,18 @@ class NetworkList : public QTableView
 public:
     explicit NetworkList();
 
-    void insert_data(const QString &name, const QString &ipv4, const QString &ipv6);
-
-    void set_tab_index (int index);
+    void setTabIndex (int index);
 
 public slots:
-    void refresh_data(int index);
+    void refreshData(int index);
 
 
 private:
+    void insertData(const QString &name, const QString &ipv4, const QString &ipv6);
+
+    void clearData();
+
+
     InterfacesTableModel* interfaces;
     int tab_index;
 };
