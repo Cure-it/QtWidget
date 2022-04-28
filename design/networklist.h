@@ -22,24 +22,17 @@ struct Interface
         return name == other.name && ipv4 == other.ipv4 && ipv6 == other.ipv6;
     }
 };
-/*
-inline QDataStream &operator<<(QDataStream &stream, const Contact &contact)
-{
-    return stream << contact.name << contact.address;
-}
 
-inline QDataStream &operator>>(QDataStream &stream, Contact &contact)
-{
-    return stream >> contact.name >> contact.address;
-}
-*/
+
+
+
 class InterfacesTableModel : public QAbstractTableModel
 {
     Q_OBJECT
 
 public:
     InterfacesTableModel(QObject *parent = nullptr);
-    InterfacesTableModel(const QList<Interface> &contacts, QObject *parent = nullptr);
+    InterfacesTableModel(const QList<Interface> &interfaces, QObject *parent = nullptr);
 
     int rowCount(const QModelIndex &parent) const override;
     int columnCount(const QModelIndex &parent) const override;
@@ -78,7 +71,7 @@ private:
     void clearData();
 
 
-    InterfacesTableModel* interfaces;
+    InterfacesTableModel* interfaces_model;
     int tab_index;
 };
 

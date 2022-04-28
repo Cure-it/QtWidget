@@ -1,7 +1,7 @@
 #include "networklist.h"
 
 
-//! [0]
+
 InterfacesTableModel::InterfacesTableModel(QObject *parent)
     : QAbstractTableModel(parent)
 {
@@ -12,9 +12,9 @@ InterfacesTableModel::InterfacesTableModel(const QList<Interface> &interfaces, Q
     : QAbstractTableModel(parent), interfaces(interfaces)
 {
 }
-//! [0]
 
-//! [1]
+
+
 int InterfacesTableModel::rowCount(const QModelIndex &parent) const
 {
     return parent.isValid() ? 0 : interfaces.size();
@@ -24,9 +24,9 @@ int InterfacesTableModel::columnCount(const QModelIndex &parent) const
 {
     return parent.isValid() ? 0 : 3;
 }
-//! [1]
 
-//! [2]
+
+
 QVariant InterfacesTableModel::data(const QModelIndex &index, int role) const
 {
     if (!index.isValid())
@@ -51,9 +51,9 @@ QVariant InterfacesTableModel::data(const QModelIndex &index, int role) const
     }
     return QVariant();
 }
-//! [2]
 
-//! [3]
+
+
 QVariant InterfacesTableModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
     if (role != Qt::DisplayRole)
@@ -62,37 +62,38 @@ QVariant InterfacesTableModel::headerData(int section, Qt::Orientation orientati
     if (orientation == Qt::Horizontal) {
         switch (section) {
             case 0:
-                return tr("Name");
+                return "Name";
             case 1:
-                return tr("ipv4");
+                return "ipv4";
             case 2:
-                return tr("ipv6");
+                return "ipv6";
             default:
                 break;
         }
     }
     return QVariant();
 }
-//! [3]
 
-//! [4]
+
+
 bool InterfacesTableModel::insertRows(int position, int rows, const QModelIndex &index)
 {
     Q_UNUSED(index);
     beginInsertRows(QModelIndex(), position, position + rows - 1);
 
     for (int row = 0; row < rows; ++row)
-        interfaces.insert(position, { QString(), QString() });
+        interfaces.insert(position, { QString(), QString(), QString() });
 
     endInsertRows();
     return true;
 }
-//! [4]
 
-//! [5]
+
+
 bool InterfacesTableModel::removeRows(int position, int rows, const QModelIndex &index)
 {
     Q_UNUSED(index);
+
     beginRemoveRows(QModelIndex(), position, position + rows - 1);
 
     for (int row = 0; row < rows; ++row)
@@ -101,9 +102,9 @@ bool InterfacesTableModel::removeRows(int position, int rows, const QModelIndex 
     endRemoveRows();
     return true;
 }
-//! [5]
 
-//! [6]
+
+
 bool InterfacesTableModel::setData(const QModelIndex &index, const QVariant &value, int role)
 {
     if (index.isValid() && role == Qt::EditRole) {
@@ -131,9 +132,9 @@ bool InterfacesTableModel::setData(const QModelIndex &index, const QVariant &val
 
     return false;
 }
-//! [6]
 
-//! [7]
+
+
 Qt::ItemFlags InterfacesTableModel::flags(const QModelIndex &index) const
 {
     if (!index.isValid())
@@ -141,28 +142,28 @@ Qt::ItemFlags InterfacesTableModel::flags(const QModelIndex &index) const
 
     return QAbstractTableModel::flags(index) | Qt::ItemIsEditable;
 }
-//! [7]
 
-//! [8]
+
+
 const QList<Interface> &InterfacesTableModel::getInterfaces() const
 {
     return interfaces;
 }
-//! [8]
+
+
+
+
+
 
 
 #include <QItemSelection>
 #include <QTabWidget>
 #include <QtWidgets>
 
-
-
-
-
 NetworkList::NetworkList()
-    : interfaces(new InterfacesTableModel(this))
+    : interfaces_model(new InterfacesTableModel(this))
 {
-    setModel(interfaces);
+    setModel(interfaces_model);
     setSelectionBehavior(QAbstractItemView::SelectRows);
     horizontalHeader()->setStretchLastSection(true);
     verticalHeader()->hide();
@@ -175,21 +176,22 @@ NetworkList::NetworkList()
 
 void NetworkList::insertData(const QString &name, const QString &ipv4, const QString &ipv6)
 {
-    interfaces->insertRows(0, 1, QModelIndex());
+    interfaces_model->insertRows(0, 1, QModelIndex());
 
-    QModelIndex index = interfaces->index(0, 0, QModelIndex());
-    interfaces->setData(index, name, Qt::EditRole);
-    index = interfaces->index(0, 1, QModelIndex());
-    interfaces->setData(index, ipv4, Qt::EditRole);
-    index = interfaces->index(0, 2, QModelIndex());
-    interfaces->setData(index, ipv6, Qt::EditRole);
+    QModelIndex index = interfaces_model->index(0, 0, QModelIndex());
+    interfaces_model->setData(index, name, Qt::EditRole);
+    index = interfaces_model->index(0, 1, QModelIndex());
+    interfaces_model->setData(index, ipv4, Qt::EditRole);
+    index = interfaces_model->index(0, 2, QModelIndex());
+    interfaces_model->setData(index, ipv6, Qt::EditRole);
 }
 
 
 void NetworkList::clearData()
 {
-   auto size = interfaces->rowCount(QModelIndex());
-   interfaces->removeRows(0, size, QModelIndex());
+   auto size = interfaces_model->rowCount(QModelIndex());
+   if (size)
+       interfaces_model->removeRows(0, size, QModelIndex());
 }
 
 
@@ -216,6 +218,8 @@ void NetworkList::refreshData(int index)
                     if (ip.protocol() == QAbstractSocket::IPv4Protocol)
                         ipv4 = ip.toString();
                     else if (ip.protocol() == QAbstractSocket::IPv6Protocol)
+                        // "toString()" adds type of interface after ipv6 address.
+                        // If it unnecessary, it can be removed by deleting everything after separating symbol '%'
                         ipv6 = ip.toString();
 
                 }
