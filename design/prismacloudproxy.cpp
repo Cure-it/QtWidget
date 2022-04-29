@@ -7,16 +7,11 @@ IncidentsTableModel::IncidentsTableModel(QObject *parent)
 {
 }
 
-IncidentsTableModel::IncidentsTableModel(const QList<Incident> &incidents, QObject *parent)
-    : QAbstractTableModel(parent), incidents(incidents)
-{
-}
-
 
 
 int IncidentsTableModel::rowCount(const QModelIndex &parent) const
 {
-    return parent.isValid() ? 0 : incidents.size();
+    return parent.isValid() ? 0 : m_incidents.size();
 }
 
 int IncidentsTableModel::columnCount(const QModelIndex &parent) const
@@ -26,16 +21,56 @@ int IncidentsTableModel::columnCount(const QModelIndex &parent) const
 
 
 
+bool IncidentsTableModel::insertRows(int position, int rows, const QModelIndex &index)
+{
+    Q_UNUSED(index);
+    if (position < 0)
+        return false;
+    if (rows)
+    {
+        beginInsertRows(QModelIndex(), position, position + rows - 1);
+
+        for (int row = 0; row < rows; ++row)
+            m_incidents.insert(position, { QString(), QString(), QString(), QString() });
+
+        endInsertRows();
+    }
+    return true;
+}
+
+bool IncidentsTableModel::removeRows(int position, int rows, const QModelIndex &index)
+{
+    Q_UNUSED(index);
+
+    if (rows)
+    {
+        if (m_incidents.size() < position + rows)
+            return false;
+
+        beginRemoveRows(QModelIndex(), position, position + rows - 1);
+
+        for (int row = 0; row < rows; ++row)
+            m_incidents.removeAt(position);
+
+        endRemoveRows();
+    }
+    return true;
+}
+
+
+/* For DisplayRole it returns columns 0-2 (date, name, short_description)
+ * For DisplayPropertyRole it always returns column 3 (reference)
+*/
 QVariant IncidentsTableModel::data(const QModelIndex &index, int role) const
 {
     if (!index.isValid())
         return QVariant();
 
-    if (index.row() >= incidents.size() || index.row() < 0)
+    if (index.row() >= m_incidents.size() || index.row() < 0)
         return QVariant();
 
     if (role == Qt::DisplayRole) {
-        const auto &incident = incidents.at(index.row());
+        const auto &incident = m_incidents.at(index.row());
 
         switch (index.column()) {
             case 0:
@@ -47,11 +82,12 @@ QVariant IncidentsTableModel::data(const QModelIndex &index, int role) const
             default:
                 break;
         }
+    } else if (role == Qt::DisplayPropertyRole) {
+        const auto &incident = m_incidents.at(index.row());
+        return incident.reference;
     }
     return QVariant();
 }
-
-
 
 QVariant IncidentsTableModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
@@ -75,40 +111,11 @@ QVariant IncidentsTableModel::headerData(int section, Qt::Orientation orientatio
 
 
 
-bool IncidentsTableModel::insertRows(int position, int rows, const QModelIndex &index)
-{
-    Q_UNUSED(index);
-    beginInsertRows(QModelIndex(), position, position + rows - 1);
-
-    for (int row = 0; row < rows; ++row)
-        incidents.insert(position, { QString(), QString(), QString(), QString() });
-
-    endInsertRows();
-    return true;
-}
-
-
-
-bool IncidentsTableModel::removeRows(int position, int rows, const QModelIndex &index)
-{
-    Q_UNUSED(index);
-
-    beginRemoveRows(QModelIndex(), position, position + rows - 1);
-
-    for (int row = 0; row < rows; ++row)
-        incidents.removeAt(position);
-
-    endRemoveRows();
-    return true;
-}
-
-
-
 bool IncidentsTableModel::setData(const QModelIndex &index, const QVariant &value, int role)
 {
     if (index.isValid() && role == Qt::EditRole) {
         const int row = index.row();
-        auto incident = incidents.value(row);
+        auto incident = m_incidents.value(row);
 
         switch (index.column()) {
             case 0:
@@ -126,7 +133,7 @@ bool IncidentsTableModel::setData(const QModelIndex &index, const QVariant &valu
             default:
                 return false;
         }
-        incidents.replace(row, incident);
+        m_incidents.replace(row, incident);
         emit dataChanged(index, index, {Qt::DisplayRole, Qt::EditRole});
 
         return true;
@@ -149,7 +156,7 @@ Qt::ItemFlags IncidentsTableModel::flags(const QModelIndex &index) const
 
 const QList<Incident> &IncidentsTableModel::getIncidents() const
 {
-    return incidents;
+    return m_incidents;
 }
 
 
@@ -157,43 +164,54 @@ const QList<Incident> &IncidentsTableModel::getIncidents() const
 
 
 IncidentsTable::IncidentsTable()
-    : incidents_model(new IncidentsTableModel(this))
+    : m_incidents_model(new IncidentsTableModel(this))
 {
-    setModel(incidents_model);
+    setModel(m_incidents_model);
     setSelectionBehavior(QAbstractItemView::SelectRows);
     horizontalHeader()->setStretchLastSection(true);
     verticalHeader()->hide();
     setEditTriggers(QAbstractItemView::NoEditTriggers);
     setSelectionMode(QAbstractItemView::SingleSelection);
     setSortingEnabled(true);
+
+    setToolTip("Double-click for more information");
+
+    /* Connect double-click event with start browser window
+    */
+    connect (this, &QAbstractItemView::doubleClicked, this, &IncidentsTable::showInBrowser);
 }
 
 
 
+/* Replaces data in existing table row. Add row at the end if it is not existing
+*/
 void IncidentsTable::replaceData(int index, const Incident &incident)
 {
-    if (index >= incidents_model->rowCount(QModelIndex()))
-        incidents_model->insertRows(index, 1, QModelIndex());
+    if (index >= m_incidents_model->rowCount(QModelIndex()))
+        m_incidents_model->insertRows(index, 1, QModelIndex());
 
-    QModelIndex q_index = incidents_model->index(index, 0, QModelIndex());
-    incidents_model->setData(q_index, incident.date, Qt::EditRole);
-    q_index = incidents_model->index(index, 1, QModelIndex());
-    incidents_model->setData(q_index, incident.name, Qt::EditRole);
-    q_index = incidents_model->index(index, 2, QModelIndex());
-    incidents_model->setData(q_index, incident.short_description, Qt::EditRole);
-    q_index = incidents_model->index(index, 3, QModelIndex());
-    incidents_model->setData(q_index, incident.reference, Qt::EditRole);
+    QModelIndex q_index = m_incidents_model->index(index, 0, QModelIndex());
+    m_incidents_model->setData(q_index, incident.date, Qt::EditRole);
+    q_index = m_incidents_model->index(index, 1, QModelIndex());
+    m_incidents_model->setData(q_index, incident.name, Qt::EditRole);
+    q_index = m_incidents_model->index(index, 2, QModelIndex());
+    m_incidents_model->setData(q_index, incident.short_description, Qt::EditRole);
+    q_index = m_incidents_model->index(index, 3, QModelIndex());
+    m_incidents_model->setData(q_index, incident.reference, Qt::EditRole);
 }
 
 
 
 void IncidentsTable::deleteData(int index)
 {
-    incidents_model->removeRows(index, 1, QModelIndex());
+    m_incidents_model->removeRows(index, 1, QModelIndex());
 }
 
 
 
+/* Sets data to be shown into table
+ * It sets 3 items from argument QList<Incident> incidents with indexes: start_index:start_index+2
+*/
 void IncidentsTable::refreshData(int start_index, QList<Incident> incidents)
 {
     int data_index = start_index;
@@ -201,12 +219,17 @@ void IncidentsTable::refreshData(int start_index, QList<Incident> incidents)
 
     while (data_index < start_index+3 )
     {
+        /* if incidents contains data with such index, it place data into table
+         * In other way it checks if table contain excessive rows and delete them
+        */
         if ( data_index < incidents.size() )
         {
-            if (incidents_model->getIncidents().contains({ incidents[data_index].date, incidents[data_index].name,
+            /*  Check if table already contains data to be inserted
+            */
+            if (m_incidents_model->getIncidents().contains({ incidents[data_index].date, incidents[data_index].name,
                                                          incidents[data_index].short_description, incidents[data_index].reference }))
             {
-                auto table_record_index = incidents_model->getIncidents().indexOf({ incidents[data_index].date, incidents[data_index].name,
+                auto table_record_index = m_incidents_model->getIncidents().indexOf({ incidents[data_index].date, incidents[data_index].name,
                                                                                     incidents[data_index].short_description, incidents[data_index].reference });
                 if (table_record_index == table_index)
                 {
@@ -218,13 +241,13 @@ void IncidentsTable::refreshData(int start_index, QList<Incident> incidents)
                     deleteData(table_record_index);
             }
 
-
             replaceData(table_index, incidents[data_index]);
             table_index++;
         }
         else
         {
-            if (incidents_model->rowCount(QModelIndex()) > table_index)
+            /* Delete excessive row */
+            if (m_incidents_model->rowCount(QModelIndex()) > table_index)
                 deleteData(table_index);
         }
 
@@ -234,29 +257,49 @@ void IncidentsTable::refreshData(int start_index, QList<Incident> incidents)
 
 
 
+/* Takes url reference from table information and puts it into Browser object
+*/
+void IncidentsTable::showInBrowser(const QModelIndex &index)
+{
+    auto reference = m_incidents_model->data(index, Qt::DisplayPropertyRole);
+    Browser browserWindow(QUrl(reference.toString()), this);
+
+    browserWindow.exec();
+}
+
+
+
+
+/* Opens dialog window with browser.
+ * Browser loads page with argument's url.
+*/
+Browser::Browser(const QUrl& url, QWidget *parent) :
+    QDialog(parent)
+{
+    auto main_layout = new QVBoxLayout;
+
+    auto webview = new QWebEngineView(this);
+    webview->load(url);
+    webview->show();
+
+    main_layout->addWidget(webview);
+    setLayout(main_layout);
+    setWindowTitle("Detailed info");
+}
+
+
+
+
+
+
 #include <QLabel>
-
 #include <QRegularExpression>
-
-
 PrismaCloudProxy::PrismaCloudProxy(QWidget *parent)
     : QWidget{parent},
-      web_page(this),
-      base_site_url("http://status.prismacloud.com/history?page="),
-      page_number(1),
-      incidents_table(nullptr),
-      main_layout(new QVBoxLayout),
-      button_prev(new QPushButton("Previous")),
-      button_next(new QPushButton("Next")),
-      start_index(0)
-    //,m_webview(new QWebEngineView(this))
+      incidents_table(nullptr), start_index(0),
+      web_page(this), base_site_url("http://status.prismacloud.com/history?page="), page_number(1),
+      main_layout(new QVBoxLayout), button_prev(new QPushButton("Previous")), button_next(new QPushButton("Next"))
 {
-    /*m_webview->setFixedSize(700,700);
-    connect (m_webview, &QWebEngineView::loadFinished, this, &PrismaCloudProxy::loadFinished);
-    m_webview->load(QUrl("https://status.prismacloud.com/history?page=6"));
-    //m_webview->load(QUrl("https://status.prismacloud.com/incidents/7x447422yb3w"));
-    m_webview->show();*/
-
 
     connect (&web_page, &QWebEnginePage::loadFinished, this, &PrismaCloudProxy::pageLoadFinished);
     web_page.load(QUrl(base_site_url + QString::number(page_number)));
@@ -320,12 +363,15 @@ QString month_to_number(QString month)
 }
 
 
-#include <QFile>
+
+/* Parses page and eject information from it
+*/
 void PrismaCloudProxy::pageLoadFinished()
 {
     web_page.toHtml([this] (const QString &page) {
         int next_page_number = 1;
 
+        /* Divide page for segments of mont's data */
         QRegularExpression re ("<div class=\"month\">[^{]+</div></div></div>");
         re.setPatternOptions(QRegularExpression::InvertedGreedinessOption);
         auto months_match = re.globalMatch(page);
@@ -336,11 +382,13 @@ void PrismaCloudProxy::pageLoadFinished()
             re.setPattern("\"year\">(?<year>\\d\\d\\d\\d)");
             auto current_year = re.match(match.captured()).captured("year");
 
+            /* Early completion if year is 2020 - because site keep data since 2021 */
             if (current_year == "2020")
                 next_page_number = 1;
             else
                 next_page_number = page_number + 1;
 
+            /* Find container for concrete incidents data */
             re.setPattern("incident-container\">[^{]+</var>");
             auto incidents = re.globalMatch(match.captured());
 
@@ -371,32 +419,13 @@ void PrismaCloudProxy::pageLoadFinished()
             }
         }
 
-        page_number = next_page_number;
         this->refreshTable();
 
+        /* Set next page to parse and if it start page (page_number == 1) - finilize the work */
+        page_number = next_page_number;
         if (page_number != 1)
             this->loadNextPage();
-        else
-        {
-            QFile parsedInfo("C:/Users/Curo/Documents/FWWidget/parsed_info.txt");
-            if (!parsedInfo.open(QIODevice::WriteOnly | QIODevice::Text))
-                return;
-            QTextStream out4(&parsedInfo);
-
-            for (auto it : parsed_incidents_list)
-            {
-                out4 << it.date;
-                out4 << "\n";
-                out4 << it.name;
-                out4 << "\n";
-                out4 << it.reference;
-                out4 << "\n";
-                out4 << it.short_description;
-                out4 << "\n";
-                out4 << "\n";
-            }
-        } // end of parsing
-  }); // lambda
+  });
 }
 
 
@@ -444,6 +473,7 @@ void PrismaCloudProxy::refreshTable()
 
     incidents_table->refreshData(start_index, this->parsed_incidents_list);
 }
+
 
 
 void PrismaCloudProxy::nextTablePage()

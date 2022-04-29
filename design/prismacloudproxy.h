@@ -8,6 +8,10 @@
 #include <QTableView>
 #include <QList>
 
+#include <QDialog>
+
+
+
 struct Incident
 {
     QString date;
@@ -29,23 +33,27 @@ class IncidentsTableModel : public QAbstractTableModel
     Q_OBJECT
 
 public:
-    IncidentsTableModel(QObject *parent = nullptr);
-    IncidentsTableModel(const QList<Incident> &interfaces, QObject *parent = nullptr);
+    explicit IncidentsTableModel(QObject *parent = nullptr);
+    explicit IncidentsTableModel(const IncidentsTableModel& ) = delete;
 
     int rowCount(const QModelIndex &parent) const override;
     int columnCount(const QModelIndex &parent) const override;
-    QVariant data(const QModelIndex &index, int role) const override;
-    QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
-    Qt::ItemFlags flags(const QModelIndex &index) const override;
-    bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
+
     bool insertRows(int position, int rows, const QModelIndex &index = QModelIndex()) override;
     bool removeRows(int position, int rows, const QModelIndex &index = QModelIndex()) override;
 
+    QVariant data(const QModelIndex &index, int role) const override;
+    QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
+
+    bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
+
+    Qt::ItemFlags flags(const QModelIndex &index) const override;
+
+
     const QList<Incident> &getIncidents() const;
 
-
 private:
-    QList<Incident> incidents;
+    QList<Incident> m_incidents;
 };
 
 
@@ -57,23 +65,32 @@ class IncidentsTable : public QTableView
     Q_OBJECT
 public:
     explicit IncidentsTable();
+    explicit IncidentsTable(IncidentsTable& ) = delete;
 
 public slots:
     void refreshData(int start_index, QList<Incident> incidents);
 
+    void showInBrowser(const QModelIndex &index);
 
 private:
     void replaceData(int index, const Incident &incident);
 
     void deleteData(int index);
 
-    IncidentsTableModel* incidents_model;
+private:
+    IncidentsTableModel* m_incidents_model;
 };
 
 
 
 
-
+class Browser: public QDialog
+{
+    Q_OBJECT
+public:
+    explicit Browser(const QUrl& url, QWidget *parent = nullptr);
+    explicit Browser(Browser&) = delete;
+};
 
 
 
@@ -90,6 +107,7 @@ public:
 
     void setTabIndex (int index);
 
+
 public slots:
     void pageLoadFinished();
 
@@ -97,27 +115,25 @@ public slots:
     void prevTablePage();
 
 
-
 private:
     void loadNextPage();
 
     void refreshTable();
 
-    QList<Incident> parsed_incidents_list;
 
-    //QWebEngineView *m_webview;
+private:
+    QList<Incident> parsed_incidents_list;
+    IncidentsTable* incidents_table;
+    int start_index;
+
     QWebEnginePage web_page;
     const QString base_site_url;
     int page_number;
-
-    IncidentsTable* incidents_table;
 
     QVBoxLayout* main_layout;
     QWidget* main_widget;
     QPushButton* button_prev;
     QPushButton* button_next;
-
-    int start_index;
 };
 
 #endif // PRISMACLOUDPROXY_H
